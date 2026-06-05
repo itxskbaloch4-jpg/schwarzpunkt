@@ -1,11 +1,13 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { fetchServices } from '../utils/wordpress';
 
 gsap.registerPlugin(ScrollTrigger);
 
-const leistungen = [
+// ── Static fallbacks ───────────────────────────────────────────────
+const FALLBACK_LEISTUNGEN = [
   {
     icon: '◈',
     title: 'WordPress Websites',
@@ -87,6 +89,31 @@ const leistungen = [
 ];
 
 export default function Leistungen() {
+  // ── WordPress dynamic state ───────────────────────────────────────
+  const [leistungen, setLeistungen] = useState(FALLBACK_LEISTUNGEN);
+
+  useEffect(() => {
+    // fetchServices returns { icon, title, color, desc } — no features array from WP
+    // We merge WP data with fallback features so cards always look complete
+    fetchServices().then((data) => {
+      if (data && data.length > 0) {
+        const merged = data.map((wpItem, i) => {
+          const fallback = FALLBACK_LEISTUNGEN[i] || {};
+          return {
+            icon: wpItem.icon || fallback.icon || '◈',
+            title: wpItem.title || fallback.title || '',
+            color: wpItem.color || fallback.color || '#c8ff00',
+            desc: wpItem.desc || fallback.desc || '',
+            // Keep static features list — not managed via WP in this setup
+            features: fallback.features || [],
+          };
+        });
+        setLeistungen(merged);
+      }
+    });
+  }, []);
+  // ─────────────────────────────────────────────────────────────────
+
   useEffect(() => {
     gsap.utils.toArray('.leistung-card').forEach((card, i) => {
       gsap.fromTo(card,
@@ -117,23 +144,25 @@ export default function Leistungen() {
         </div>
       </section>
 
-      {/* LEISTUNGEN GRID */}
+      {/* LEISTUNGEN GRID — dynamic */}
       <section className="section">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 28 }}>
-          {leistungen.map(({ icon, title, color, desc, features }) => (
-            <div key={title} className="glass-card card-shine leistung-card" style={{ padding: '44px 36px', position: 'relative', overflow: 'hidden' }}>
+          {leistungen.map(({ icon, title, color, desc, features }, idx) => (
+            <div key={title || idx} className="glass-card card-shine leistung-card" style={{ padding: '44px 36px', position: 'relative', overflow: 'hidden' }}>
               <div style={{ position: 'absolute', top: 0, right: 0, width: 200, height: 200, background: `radial-gradient(circle, ${color}12, transparent 70%)`, pointerEvents: 'none' }} />
               <div style={{ fontSize: '2.5rem', marginBottom: 24, color, filter: `drop-shadow(0 0 16px ${color}60)` }}>{icon}</div>
               <h3 style={{ fontSize: '1.4rem', marginBottom: 14 }}>{title}</h3>
               <p style={{ fontSize: '0.9rem', marginBottom: 28, lineHeight: 1.8 }}>{desc}</p>
-              <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {features.map((f) => (
-                  <li key={f} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: '0.875rem', color: 'var(--white-dim)' }}>
-                    <span style={{ width: 20, height: 20, background: `${color}20`, border: `1px solid ${color}40`, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', color, flexShrink: 0, fontWeight: 700 }}>✓</span>
-                    {f}
-                  </li>
-                ))}
-              </ul>
+              {features && features.length > 0 && (
+                <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {features.map((f) => (
+                    <li key={f} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: '0.875rem', color: 'var(--white-dim)' }}>
+                      <span style={{ width: 20, height: 20, background: `${color}20`, border: `1px solid ${color}40`, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', color, flexShrink: 0, fontWeight: 700 }}>✓</span>
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           ))}
         </div>

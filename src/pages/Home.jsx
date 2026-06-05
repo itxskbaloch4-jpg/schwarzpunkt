@@ -1,7 +1,8 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { fetchHero, fetchServices } from '../utils/wordpress';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -12,7 +13,13 @@ const stats = [
   { num: '1', label: 'Ansprechpartner: Jérôme Meier' },
 ];
 
-const services = [
+// ── Static fallbacks (shown if WP API is unreachable) ───────────────
+const FALLBACK_HERO = {
+  title: null,
+  subtitle: null,
+};
+
+const FALLBACK_SERVICES = [
   {
     icon: '◈',
     title: 'WordPress Websites',
@@ -61,6 +68,27 @@ export default function Home() {
   const heroRef = useRef(null);
   const titleRef = useRef(null);
   const statsRef = useRef(null);
+
+  // ── WordPress dynamic state ──────────────────────────────────────
+  const [hero, setHero] = useState(FALLBACK_HERO);
+  const [services, setServices] = useState(FALLBACK_SERVICES);
+
+  useEffect(() => {
+    // Fetch Hero data from WordPress
+    fetchHero().then((data) => {
+      if (data && (data.title || data.subtitle)) {
+        setHero(data);
+      }
+    });
+
+    // Fetch Services from WordPress
+    fetchServices().then((data) => {
+      if (data && data.length > 0) {
+        setServices(data);
+      }
+    });
+  }, []);
+  // ────────────────────────────────────────────────────────────────
 
   useEffect(() => {
     // Hero title animation
@@ -129,12 +157,22 @@ export default function Home() {
 
           <div ref={titleRef} style={{ maxWidth: 1000 }}>
             <h1 style={{ marginBottom: 32, lineHeight: 1.05 }}>
-              Web & Design
-              <br />
-              <span className="shimmer-text">nach Mass.</span>
+              {/* ── DYNAMIC: Hero Title ── */}
+              {hero.title ? (
+                <span dangerouslySetInnerHTML={{ __html: hero.title }} />
+              ) : (
+                <>
+                  Web & Design
+                  <br />
+                  <span className="shimmer-text">nach Mass.</span>
+                </>
+              )}
             </h1>
             <p style={{ fontSize: 'clamp(1rem, 2vw, 1.25rem)', maxWidth: 560, marginBottom: 48 }}>
-              Über 10 Jahre Erfahrung in Konzeption, Gestaltung und Realisierung von Webseiten mit WordPress — individuelle Qualitätsarbeit von Jérôme Meier aus Winterthur.
+              {/* ── DYNAMIC: Hero Subtitle ── */}
+              {hero.subtitle
+                ? hero.subtitle
+                : 'Über 10 Jahre Erfahrung in Konzeption, Gestaltung und Realisierung von Webseiten mit WordPress — individuelle Qualitätsarbeit von Jérôme Meier aus Winterthur.'}
             </p>
             <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
               <Link to="/kontakt" className="btn-accent">
@@ -240,13 +278,14 @@ export default function Home() {
         <p style={{ maxWidth: 560, marginBottom: 64 }}>
           Von der ersten Idee bis zur fertigen Website — schwarzpunkt meier begleitet Sie durch den gesamten Prozess.
         </p>
+        {/* ── DYNAMIC: Services Grid ── */}
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
           gap: 24,
         }}>
-          {services.map(({ icon, title, desc, color }) => (
-            <div key={title} className="glass-card card-shine service-card" style={{
+          {services.map(({ icon, title, desc, color }, idx) => (
+            <div key={title || idx} className="glass-card card-shine service-card" style={{
               padding: '36px 32px',
               position: 'relative',
               overflow: 'hidden',
